@@ -25,7 +25,7 @@ tarot-app/
 ├── back.png             
 ├── ambient.mp3          
 ├── api/
-│   └── tarot-reading.js ← serverless function gọi AI
+│   └── tarot-reading.js <-- serverless function gọi AI
 ├── package.json
 ├── vercel.json
 ├── .gitignore
