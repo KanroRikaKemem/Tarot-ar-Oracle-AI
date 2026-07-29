@@ -9,9 +9,9 @@ Trình duyệt (index.html, three.js, mediapipe)
         ▼
 Vercel Serverless Function (api/tarot-reading.js)
         │
-        │  gọi Gemini API bằng GEMINI_API_KEY (giấu ở server, free tier)
+        │  gọi Gemini API bằng GEMINI_API_KEY (free tier)
         ▼
-Google Gemini API → trả về JSON luận giải → hiển thị lên modal
+Google Gemini API --> trả về JSON luận giải --> hiển thị lên modal
 ```
 
 ---
