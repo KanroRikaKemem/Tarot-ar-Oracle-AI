@@ -1,5 +1,9 @@
 # Tarot AR + AI Luận Giải
 
+## Giới thiệu
+- Là bản nâng cấp có thêm AI của [Tarot-ar-Oracle](https://kanrorikakemem.github.io/Tarot-ar-Oracle/), hoàn toàn miễn với Gemini free tier, miễn là traffic không vượt giới hạn request/phút hoặc request/ngày. Nếu web được nhiều người dùng cùng lúc, có thể gặp lỗi 429 (rate limit) - code đã tự fallback về nghĩa lá bài tĩnh trong trường hợp đó nên trải nghiệm không bị gián đoạn hoàn toàn.
+- Trải nghiệm thử ở [Tarot-ar-Oracle-AI](https://tarot-ar-oracle-ai.vercel.app/).
+
 ## Tổng quan kiến trúc
 
 ```
@@ -31,7 +35,3 @@ tarot-app/
 ├── .gitignore
 └── .env.example
 ```
-
-## Giới thiệu
-- Là bản nâng cấp có thêm AI của [Tarot-ar-Oracle](https://kanrorikakemem.github.io/Tarot-ar-Oracle/), hoàn toàn miễn với Gemini free tier, miễn là traffic không vượt giới hạn request/phút hoặc request/ngày. Nếu web được nhiều người dùng cùng lúc, có thể gặp lỗi 429 (rate limit) - code đã tự fallback về nghĩa lá bài tĩnh trong trường hợp đó nên trải nghiệm không bị gián đoạn hoàn toàn.
-- Trải nghiệm thử ở [Tarot-ar-Oracle-AI](https://tarot-ar-oracle-ai.vercel.app/).
