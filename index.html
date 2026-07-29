@@ -1,0 +1,601 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Tarot AR - Starry Dark Oracle</title>
+    <style>
+        body { margin: 0; overflow: hidden; background-color: #000; font-family: 'Times New Roman', serif; color: #fff; }
+        
+        #input-video { 
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%; 
+            object-fit: cover; opacity: 0; z-index: -10; pointer-events: none; 
+            transform: scaleX(-1); 
+        } 
+        
+        #canvas-container { width: 100vw; height: 100vh; position: absolute; top: 0; left: 0; z-index: 1; }
+        #ui-layer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 2; pointer-events: none; }
+        
+        #guide-text {
+            position: absolute; width: 100%; text-align: center;
+            color: #fff; letter-spacing: 3px; font-weight: normal;
+            text-shadow: 0 0 10px rgba(255, 255, 255, 0.5); pointer-events: none;
+            transition: opacity 0.5s; text-transform: uppercase;
+            font-size: 0.7rem; bottom: 5%; 
+        }
+
+        #counter {
+            position: absolute; top: 30px; right: 40px;
+            font-size: 1.2rem; color: #fff; font-weight: bold;
+            border: 1px solid rgba(255, 255, 255, 0.5); padding: 5px 20px; border-radius: 30px;
+            background: rgba(0, 0, 0, 0.3); backdrop-filter: blur(5px);
+        }
+
+        #mode-overlay, #theme-overlay, #question-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: #000; z-index: 50; display: flex; justify-content: center; align-items: center;
+        }
+        .mode-box { text-align: center; border: 1px solid #fff; padding: 50px; background: #0a0a0a; max-width: 90vw; }
+        .mode-box h2 { letter-spacing: 5px; margin-bottom: 30px; font-weight: normal; font-family: 'Times New Roman', serif; }
+        .mode-box p.subtext { color: #888; font-size: 0.75rem; letter-spacing: 1px; margin-top: -18px; margin-bottom: 25px; }
+        .mode-box button {
+            display: block; width: 280px; margin: 15px auto; padding: 15px;
+            background: transparent; border: 1px solid #fff; color: #fff;
+            cursor: pointer; font-family: 'Times New Roman', serif; letter-spacing: 2px; transition: 0.3s;
+        }
+        .mode-box button:hover { background: #fff; color: #000; box-shadow: 0 0 20px #fff; }
+        .mode-box button.back-btn { border-color: #555; color: #888; font-size: 0.75rem; width: auto; padding: 8px 20px; }
+        .mode-box button.back-btn:hover { background: transparent; color: #fff; box-shadow: none; border-color: #fff; }
+
+        .mode-box input[type="text"] {
+            display: block; width: 280px; margin: 0 auto 20px; padding: 14px;
+            background: #111; border: 1px solid #444; color: #fff;
+            font-family: 'Times New Roman', serif; font-size: 1rem; text-align: center;
+            outline: none; box-sizing: border-box;
+        }
+        .mode-box input[type="text"]:focus { border-color: #d4af37; }
+        .mode-box input[type="text"]::placeholder { color: #666; font-style: italic; }
+
+        #result-modal {
+            position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            width: 85%; max-width: 600px; max-height: 80vh;
+            overflow-y: auto; background: rgba(5, 5, 5, 0.98); 
+            border: 1px solid #d4af37; padding: 35px; 
+            display: none; z-index: 9999; pointer-events: auto;
+            -webkit-overflow-scrolling: touch; border-radius: 4px; outline: none;
+            font-family: 'Times New Roman', serif;
+        }
+        
+        .reading-section { margin-bottom: 40px; border-bottom: 1px solid #222; padding-bottom: 20px; animation: fadeIn 0.6s ease-out; }
+        .reading-label { color: #888; font-size: 0.7rem; letter-spacing: 2px; text-transform: uppercase; margin-bottom: 15px; display: block;}
+        .reading-body { display: flex; gap: 30px; align-items: start; }
+        .reading-img { width: 110px; border-radius: 2px; flex-shrink: 0; }
+        .reading-desc { color: #ccc; line-height: 1.7; font-size: 1rem; text-align: justify; }
+        .reading-overall { color: #d4af37; line-height: 1.8; font-size: 1.05rem; text-align: center; font-style: italic; margin-bottom: 30px; }
+        .reading-advice { color: #ccc; line-height: 1.7; font-size: 1rem; text-align: justify; }
+        .reading-leaning {
+            text-align: center; font-size: 1.3rem; letter-spacing: 4px; text-transform: uppercase;
+            color: #d4af37; margin-bottom: 25px; padding: 10px; border: 1px solid #333;
+        }
+        .loading-dots { text-align: center; color: #888; letter-spacing: 2px; padding: 40px 0; font-size: 0.85rem; }
+        .ai-error-note { color: #a66; font-size: 0.7rem; text-align: center; margin-bottom: 20px; letter-spacing: 1px; }
+
+        button.restart-btn { 
+            display: block; margin: 40px auto 0; padding: 15px 50px; 
+            background: transparent; border: 1px solid #fff; color: #fff; 
+            cursor: pointer; text-transform: uppercase; font-size: 0.9rem; transition: 0.5s;
+            font-family: 'Times New Roman', serif !important;
+        }
+        button.restart-btn:hover { background: #fff; color: #000; }
+
+        #loading { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #000; z-index: 100; display: flex; justify-content: center; align-items: center; }
+        
+        #virtual-cursor {
+            position: absolute; width: 30px; height: 30px;
+            border: 2px solid #fff; border-radius: 50%;
+            transform: translate(-50%, -50%); pointer-events: none;
+            z-index: 100; display: none;
+            box-shadow: 0 0 20px rgba(255,255,255,0.8), inset 0 0 10px rgba(255,255,255,0.4);
+            background: rgba(255, 255, 255, 0.15);
+        }
+        #virtual-cursor.pinching { background: #fff; transform: translate(-50%, -50%) scale(0.6); box-shadow: 0 0 40px #fff; }
+
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(15px); } to { opacity: 1; transform: translateY(0); } }
+    </style>
+
+    <script src="data.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tween.js/18.6.4/tween.umd.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js" crossorigin="anonymous"></script>
+</head>
+<body>
+    <video id="input-video" playsinline autoplay muted></video>
+    <div id="canvas-container"></div>
+    <div id="virtual-cursor"></div>
+    
+    <div id="ui-layer">
+        <div id="counter">0 / 0</div>
+        <div id="guide-text">Đang kết nối tâm linh...</div>
+        
+        <div id="result-modal" tabindex="-1">
+            <h2 style="text-align: center; font-size: 2.5rem; letter-spacing: 8px; padding-left: 8px; color: #d4af37; font-weight: normal;">LỜI TIÊN TRI</h2>
+            <div id="final-reading"></div>
+            <button class="restart-btn" onclick="resetGame()">Trải Bài Mới</button>
+        </div>
+    </div>
+
+    <div id="loading">
+        <div style="letter-spacing: 5px; font-size: 0.8rem; font-family: 'Times New Roman', serif;">✦ LOADING ✦</div>
+    </div>
+
+    <!-- Bước 1: chọn hình thức trải bài -->
+    <div id="mode-overlay" style="display:none;">
+        <div class="mode-box">
+            <h2>CHỌN TRẢI BÀI</h2>
+            <button onclick="chooseMode(1)">✦ MỘT LÁ (Daily Message) ✦</button>
+            <button onclick="chooseMode(3)">✦ BA LÁ (Past - Present - Future) ✦</button>
+        </div>
+    </div>
+
+    <!-- Bước 2a: chọn chủ đề (chỉ hiện với trải bài 3 lá) -->
+    <div id="theme-overlay" style="display:none;">
+        <div class="mode-box">
+            <h2>CHỌN CHỦ ĐỀ</h2>
+            <p class="subtext">Ba lá bài sẽ được luận giải xoay quanh chủ đề này</p>
+            <button onclick="selectTheme('tình cảm')">✦ TÌNH CẢM ✦</button>
+            <button onclick="selectTheme('công việc')">✦ CÔNG VIỆC ✦</button>
+            <button onclick="selectTheme('sức khoẻ')">✦ SỨC KHOẺ ✦</button>
+            <button onclick="selectTheme('tinh thần')">✦ TINH THẦN ✦</button>
+            <button class="back-btn" onclick="backToModeSelect()">‹ Quay lại</button>
+        </div>
+    </div>
+
+    <!-- Bước 2b: nhập câu hỏi (chỉ hiện với trải bài 1 lá) -->
+    <div id="question-overlay" style="display:none;">
+        <div class="mode-box">
+            <h2>CÂU HỎI CỦA BẠN</h2>
+            <p class="subtext">Câu hỏi Yes/No, hoặc điều bạn muốn dự báo tốt xấu</p>
+            <input type="text" id="question-input" placeholder="VD: Tuần này công việc có thuận lợi không?" maxlength="200">
+            <button onclick="submitQuestion()">✦ BỐC BÀI ✦</button>
+            <button class="back-btn" onclick="backToModeSelect()">‹ Quay lại</button>
+        </div>
+    </div>
+
+    <script>
+        const TAROT_DATA = TAROT_DATABASE;
+        const CONFIG = {
+            cardCount: TAROT_DATA.length, 
+            radius: 15.0, 
+            cardWidth: 1.4, cardHeight: 2.4, 
+            inspectPos: { x: 0, y: 0, z: 3.8 }, 
+            inspectScale: 0.45, storageScale: 0.08, storageZ: 3.5, 
+            storeMarginX: 0.15, storeMarginTop: 1.1, storeGapY: 0.28 
+        };
+
+        // Endpoint backend (Vercel serverless function). Vì frontend và backend
+        // deploy chung 1 project nên chỉ cần đường dẫn tương đối.
+        const AI_ENDPOINT = '/api/tarot-reading';
+
+        const bgMusic = new Audio('ambient.mp3');
+        bgMusic.loop = true;
+        bgMusic.volume = 0.4;
+        let musicStarted = false;
+
+        function startMusic() {
+            if (!musicStarted) {
+                bgMusic.play().then(() => {
+                    musicStarted = true;
+                }).catch(e => console.log("Chờ tương tác mạnh hơn để phát nhạc"));
+            }
+        }
+
+        let scene, camera, renderer, cardGroup, textureLoader, starField;
+        let raycaster = new THREE.Raycaster(), mouse = new THREE.Vector2();
+        let storedCards = [], inspectingCard = null, isGameActive = false;
+        let gameMode = 3, camInstance = null, handX = 0.5, rotationSpeed = 0, wristTilt = 0, isPinching = false;
+        let currentTheme = null, currentQuestion = null;
+        let pendingMode = null;
+
+        function init() {
+            scene = new THREE.Scene();
+            scene.fog = new THREE.FogExp2(0x000000, 0.015);
+            camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 500);
+            camera.position.set(0, 0, 5);
+            
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setClearColor(0x000000, 1);
+            renderer.setPixelRatio(window.devicePixelRatio);
+            document.getElementById('canvas-container').appendChild(renderer.domElement);
+
+            scene.add(new THREE.AmbientLight(0xffffff, 0.7));
+            textureLoader = new THREE.TextureLoader();
+            
+            createStars();
+            createCards();
+            
+            setTimeout(() => {
+                document.getElementById('loading').style.opacity = 0;
+                setTimeout(() => {
+                    document.getElementById('loading').style.display = 'none';
+                    document.getElementById('mode-overlay').style.display = 'flex';
+                }, 800);
+            }, 1500);
+
+            document.addEventListener('mousedown', onMouseDown);
+            window.addEventListener('resize', onResize);
+        }
+
+        function createStars() {
+            const starGeometry = new THREE.BufferGeometry();
+            const starMaterial = new THREE.PointsMaterial({ 
+                color: 0xffffff, 
+                size: 0.15, 
+                transparent: true, 
+                opacity: 0.8,
+                depthWrite: false,
+                depthTest: true
+            });
+
+            const starVertices = [];
+            for (let i = 0; i < 2000; i++) {
+                const r = 40 + Math.random() * 40;
+                const theta = Math.random() * Math.PI * 2;
+                const phi = Math.acos((Math.random() * 2) - 1);
+
+                const x = r * Math.sin(phi) * Math.cos(theta);
+                const y = r * Math.sin(phi) * Math.sin(theta);
+                const z = r * Math.cos(phi);
+
+                starVertices.push(x, y, z);
+            }
+
+            starGeometry.setAttribute('position', new THREE.Float32BufferAttribute(starVertices, 3));
+            starField = new THREE.Points(starGeometry, starMaterial);
+
+            starField.renderOrder = -10; 
+    
+            scene.add(starField);
+        }
+
+        function createCards() {
+            cardGroup = new THREE.Group();
+            scene.add(cardGroup);
+            const geo = new THREE.BoxGeometry(CONFIG.cardWidth, CONFIG.cardHeight, 0.02);
+            const backTex = textureLoader.load('back.png');
+            const matEdge = new THREE.MeshStandardMaterial({ color: 0x111111 }); 
+
+            TAROT_DATA.forEach((data, i) => {
+                const matFront = new THREE.MeshStandardMaterial({ map: textureLoader.load(data.url) });
+                const materials = [matEdge, matEdge, matEdge, matEdge, new THREE.MeshStandardMaterial({map: backTex}), matFront];
+                const card = new THREE.Mesh(geo, materials);
+        
+                const angle = (i / CONFIG.cardCount) * Math.PI * 2;
+                card.position.set(Math.sin(angle) * CONFIG.radius, 0, Math.cos(angle) * CONFIG.radius);
+
+                card.lookAt(0, 0, 0);
+
+                card.userData = { 
+                    id: i, 
+                    data: data, 
+                    isPicked: false,
+                    initialRotation: { x: card.rotation.x, y: card.rotation.y, z: card.rotation.z }
+                }; 
+        
+                cardGroup.add(card);
+            });
+        }
+
+        // ---------- LUỒNG CHỌN CHẾ ĐỘ / CHỦ ĐỀ / CÂU HỎI ----------
+
+        function chooseMode(mode) {
+            pendingMode = mode;
+            document.getElementById('mode-overlay').style.display = 'none';
+            if (mode === 3) {
+                document.getElementById('theme-overlay').style.display = 'flex';
+            } else {
+                document.getElementById('question-overlay').style.display = 'flex';
+                setTimeout(() => document.getElementById('question-input').focus(), 100);
+            }
+        }
+
+        function backToModeSelect() {
+            document.getElementById('theme-overlay').style.display = 'none';
+            document.getElementById('question-overlay').style.display = 'none';
+            document.getElementById('mode-overlay').style.display = 'flex';
+        }
+
+        function selectTheme(theme) {
+            currentTheme = theme;
+            document.getElementById('theme-overlay').style.display = 'none';
+            startGame(3);
+        }
+
+        function submitQuestion() {
+            const input = document.getElementById('question-input');
+            const val = input.value.trim();
+            if (!val) {
+                input.style.borderColor = '#a66';
+                input.placeholder = 'Vui lòng nhập câu hỏi trước khi bốc bài';
+                return;
+            }
+            currentQuestion = val;
+            document.getElementById('question-overlay').style.display = 'none';
+            startGame(1);
+        }
+
+        function startGame(mode) {
+            startMusic();
+            gameMode = mode;
+            isGameActive = true;
+            document.getElementById('canvas-container').style.pointerEvents = "auto";
+            updateCounter();
+            if (!musicStarted) {
+                bgMusic.play().catch(e => console.log("Music blocked by browser"));
+                musicStarted = true;
+            }
+            shuffleArray(TAROT_DATA);
+            if (camInstance) camInstance.start();
+        }
+
+        function resetGame() {
+            document.getElementById('result-modal').style.display = 'none';
+
+            document.getElementById('theme-overlay').style.display = 'none';
+            document.getElementById('question-overlay').style.display = 'none';
+            const modeOverlay = document.getElementById('mode-overlay');
+            modeOverlay.style.display = 'flex';
+            modeOverlay.style.opacity = 1;
+
+            document.getElementById('question-input').value = '';
+            currentTheme = null;
+            currentQuestion = null;
+
+            storedCards.forEach(card => {
+                card.userData.isPicked = false;
+                cardGroup.add(card);
+
+                const angle = (card.userData.id / CONFIG.cardCount) * Math.PI * 2;
+                const oldPos = {
+                    x: Math.sin(angle) * CONFIG.radius,
+                    y: 0,
+                    z: Math.cos(angle) * CONFIG.radius
+                };
+
+                new TWEEN.Tween(card.position).to(oldPos, 1000).easing(TWEEN.Easing.Cubic.Out).start();
+
+                new TWEEN.Tween(card.rotation).to({
+                    x: card.userData.initialRotation.x,
+                    y: card.userData.initialRotation.y,
+                    z: card.userData.initialRotation.z
+                }, 1000).easing(TWEEN.Easing.Cubic.Out).start();
+
+                new TWEEN.Tween(card.scale).to({ x: 1, y: 1, z: 1 }, 1000).start();
+            });
+
+            storedCards = [];
+            inspectingCard = null;
+            isGameActive = false;
+            if (camInstance) camInstance.stop();
+
+            document.getElementById('counter').innerText = `0 / 0`;
+            document.getElementById('counter').style.opacity = 1;
+            document.getElementById('guide-text').innerText = "Vòng xoay định mệnh đang chờ đợi...";
+            document.getElementById('guide-text').style.opacity = 1;
+
+            document.getElementById('canvas-container').style.pointerEvents = "auto";
+        }
+
+        function onResults(results) {
+            if (!isGameActive) return;
+            const cursor = document.getElementById('virtual-cursor');
+            if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
+                const lm = results.multiHandLandmarks[0];
+                wristTilt = (lm[17].y - lm[5].y) * 10; 
+                handX = 1 - lm[9].x; 
+                const screenX = (1 - (lm[8].x + lm[4].x) / 2) * window.innerWidth;
+                const screenY = ((lm[8].y + lm[4].y) / 2) * window.innerHeight;
+                cursor.style.display = 'block'; cursor.style.left = `${screenX}px`; cursor.style.top = `${screenY}px`;
+
+                const isPinchingNow = Math.hypot(lm[8].x - lm[4].x, lm[8].y - lm[4].y) < 0.07; 
+                if (isPinchingNow && !isPinching && storedCards.length < gameMode && !inspectingCard) {
+                    cursor.classList.add('pinching');
+                    raycaster.setFromCamera({x: (screenX/window.innerWidth)*2-1, y: -(screenY/window.innerHeight)*2+1}, camera);
+                    const intersects = raycaster.intersectObjects(cardGroup.children);
+                    if (intersects.length > 0) pickCard(intersects[0].object);
+                } else if (!isPinchingNow) cursor.classList.remove('pinching');
+                isPinching = isPinchingNow;
+            } else { cursor.style.display = 'none'; wristTilt = 0; }
+        }
+
+        function pickCard(card) {
+            card.userData.isPicked = true;
+            card.userData.isReversed = Math.random() > 0.5;
+            inspectingCard = card;
+            scene.attach(card);
+            const targetRot = { x: 0, y: Math.PI, z: card.userData.isReversed ? Math.PI : 0 };
+            new TWEEN.Tween(card.position).to(CONFIG.inspectPos, 400).easing(TWEEN.Easing.Quartic.Out).start();
+            new TWEEN.Tween(card.rotation).to(targetRot, 400).easing(TWEEN.Easing.Back.Out).start();
+            new TWEEN.Tween(card.scale).to({ x: CONFIG.inspectScale, y: CONFIG.inspectScale, z: CONFIG.inspectScale }, 400)
+                .onComplete(() => { setTimeout(storeCard, 500); }).start();
+        }
+
+        function storeCard() {
+            if (!inspectingCard) return;
+            const card = inspectingCard; storedCards.push(card); inspectingCard = null;
+            const dist = camera.position.z - CONFIG.storageZ;
+            const vH = 2 * Math.tan(THREE.MathUtils.degToRad(camera.fov) / 2) * dist;
+            const vW = vH * camera.aspect;
+            const pos = { x: -vW / 2 + CONFIG.storeMarginX, y: vH / 2 - CONFIG.storeMarginTop - (storedCards.length - 1) * CONFIG.storeGapY, z: CONFIG.storageZ };
+            new TWEEN.Tween(card.position).to(pos, 400).easing(TWEEN.Easing.Exponential.Out).start();
+            new TWEEN.Tween(card.scale).to({ x: CONFIG.storageScale, y: CONFIG.storageScale, z: CONFIG.storageScale }, 400).start();
+            updateCounter();
+        }
+
+        function updateCounter() {
+            document.getElementById('counter').innerText = `${storedCards.length} / ${gameMode}`;
+            if (storedCards.length === gameMode) setTimeout(revealReading, 800);
+        }
+
+        // ---------- LUẬN GIẢI (AI + FALLBACK TĨNH) ----------
+
+        async function revealReading() {
+            isGameActive = false;
+            document.getElementById('canvas-container').style.pointerEvents = "none";
+            document.getElementById('virtual-cursor').style.display = "none";
+
+            const modal = document.getElementById('result-modal');
+            modal.style.display = 'block';
+            requestAnimationFrame(() => { modal.focus(); modal.scrollTop = 0; });
+
+            const content = document.getElementById('final-reading');
+            content.innerHTML = `<div class="loading-dots">✦ Đang kết nối với vũ trụ, xin chờ trong giây lát... ✦</div>`;
+
+            const payload = {
+                mode: gameMode,
+                theme: currentTheme,
+                question: currentQuestion,
+                cards: storedCards.map(c => ({
+                    name: c.userData.data.name,
+                    reversed: !!c.userData.isReversed,
+                    keywords_upright: c.userData.data.upright,
+                    keywords_reversed: c.userData.data.reversed
+                }))
+            };
+
+            try {
+                const res = await fetch(AI_ENDPOINT, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                if (!res.ok) throw new Error('AI response not ok: ' + res.status);
+
+                const data = await res.json();
+                if (data.error) throw new Error(data.error);
+
+                renderAiReading(data);
+            } catch (err) {
+                console.warn('Không lấy được luận giải AI, dùng bản tĩnh:', err);
+                renderStaticReading();
+            }
+        }
+
+        function renderAiReading(data) {
+            const content = document.getElementById('final-reading');
+            const labels = gameMode === 1 ? ["THÔNG ĐIỆP DÀNH CHO BẠN"] : ["QUÁ KHỨ", "HIỆN TẠI", "TƯƠNG LAI"];
+
+            let html = `<p class="reading-overall">${escapeHtml(data.overall || '')}</p>`;
+
+            if (gameMode === 1 && data.leaning) {
+                html += `<div class="reading-leaning">${escapeHtml(data.leaning)}</div>`;
+            }
+
+            storedCards.forEach((c, i) => {
+                const d = c.userData.data;
+                const isR = c.userData.isReversed;
+                const aiText = (data.cards && data.cards[i] && data.cards[i].text) ? data.cards[i].text : (isR ? d.reversed : d.upright);
+                const label = (data.cards && data.cards[i] && data.cards[i].position) ? data.cards[i].position : labels[i];
+
+                html += `<div class="reading-section">
+                    <span class="reading-label">✦ ${escapeHtml(label)}</span>
+                    <div class="reading-body">
+                        <img src="${d.url}" class="reading-img" style="${isR ? 'transform:rotate(180deg)' : ''}">
+                        <div class="reading-content">
+                            <h3 style="font-weight:normal;">${escapeHtml(d.name)} ${isR ? '(Ngược)' : '(Xuôi)'}</h3>
+                            <p class="reading-desc">${escapeHtml(aiText)}</p>
+                        </div>
+                    </div>
+                </div>`;
+            });
+
+            if (data.advice) {
+                html += `<div class="reading-section" style="border:none;padding-bottom:0;">
+                    <span class="reading-label">✦ LỜI KHUYÊN</span>
+                    <p class="reading-advice">${escapeHtml(data.advice)}</p>
+                </div>`;
+            }
+
+            content.innerHTML = html;
+        }
+
+        // Fallback: dùng nghĩa tĩnh có sẵn trong data.js nếu API AI lỗi/mất mạng
+        function renderStaticReading() {
+            const content = document.getElementById('final-reading');
+            const labels = gameMode === 1 ? ["THÔNG ĐIỆP DÀNH CHO BẠN"] : ["QUÁ KHỨ", "HIỆN TẠI", "TƯƠNG LAI"];
+            let html = `<p class="ai-error-note">✦ Không thể kết nối AI luận giải lúc này — hiển thị nghĩa lá bài cơ bản ✦</p>`;
+
+            storedCards.forEach((c, i) => {
+                const d = c.userData.data;
+                const isR = c.userData.isReversed;
+                html += `<div class="reading-section">
+                    <span class="reading-label">✦ ${labels[i]}</span>
+                    <div class="reading-body">
+                        <img src="${d.url}" class="reading-img" style="${isR ? 'transform:rotate(180deg)' : ''}">
+                        <div class="reading-content">
+                            <h3 style="font-weight:normal;">${escapeHtml(d.name)} ${isR ? '(Ngược)' : '(Xuôi)'}</h3>
+                            <p class="reading-desc">${escapeHtml(isR ? d.reversed : d.upright)}</p>
+                        </div>
+                    </div>
+                </div>`;
+            });
+            content.innerHTML = html;
+        }
+
+        function escapeHtml(str) {
+            if (typeof str !== 'string') return '';
+            const div = document.createElement('div');
+            div.textContent = str;
+            return div.innerHTML;
+        }
+
+        // ---------- VÒNG LẶP RENDER & TƯƠNG TÁC ----------
+
+        function animate(time) {
+            requestAnimationFrame(animate); 
+            TWEEN.update(time);
+            if (isGameActive) {
+                let targetSpeed = (handX - 0.5) * 0.15;
+                if (wristTilt > 0.5) targetSpeed *= (1 + wristTilt * 2);
+                else if (wristTilt < -0.5) targetSpeed *= (1 + wristTilt * 0.8);
+                rotationSpeed += (targetSpeed - rotationSpeed) * 0.1;
+                cardGroup.rotation.y += rotationSpeed;
+                starField.rotation.y += 0.0003;
+                cardGroup.children.forEach((c, i) => { if(!c.userData.isPicked) c.position.y = Math.sin(time * 0.0015 + i) * 0.15; });
+            }
+            renderer.render(scene, camera);
+        }
+
+        function onMouseDown(event) {
+            if (!isGameActive || storedCards.length >= gameMode || inspectingCard) return;
+            raycaster.setFromCamera({x: (event.clientX/window.innerWidth)*2-1, y: -(event.clientY/window.innerHeight)*2+1}, camera);
+            const intersects = raycaster.intersectObjects(cardGroup.children);
+            if (intersects.length > 0) pickCard(intersects[0].object);
+        }
+
+        function onResize() {
+            camera.aspect = window.innerWidth / window.innerHeight; camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+
+        function shuffleArray(array) {
+            for (let i = array.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [array[i], array[j]] = [array[j], array[i]];
+            }
+        }
+
+        init(); animate();
+
+        const hands = new Hands({locateFile: (f) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${f}`});
+        hands.setOptions({ maxNumHands: 1, modelComplexity: 1, minDetectionConfidence: 0.6, minTrackingConfidence: 0.6 });
+        hands.onResults(onResults);
+        camInstance = new Camera(document.getElementById('input-video'), {
+            onFrame: async () => { await hands.send({image: document.getElementById('input-video')}); },
+            width: 640, height: 480
+        });
+    </script>
+</body>
+</html>
