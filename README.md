@@ -20,7 +20,7 @@ Google Gemini API → trả về JSON luận giải → hiển thị lên modal
 
 ```
 tarot-app/
-├── index.html          ← 
+├── index.html          
 ├── data.js              
 ├── back.png             
 ├── ambient.mp3          
