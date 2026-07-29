@@ -10,13 +10,13 @@ CHỈ trả về một JSON object hợp lệ, không kèm bất kỳ text, mark
 
 Nguyên tắc luận giải:
 - Với trải bài 3 lá (Quá khứ - Hiện tại - Tương lai): KHÔNG diễn giải từng lá tách biệt như tra từ điển. Hãy kết nối 3 lá thành một mạch chuyện liền lạc, xoay quanh đúng chủ đề người dùng chọn (tình cảm / công việc / sức khoẻ / tinh thần). Chỉ rõ lá Quá khứ dẫn tới Hiện tại ra sao, và Hiện tại đang mở đường hoặc cảnh báo gì cho Tương lai.
-- Nếu các lá có năng lượng xung khắc nhau (ví dụ một lá tích cực mạnh đi cùng một lá đảo ngược tiêu cực), hãy chỉ ra sự căng thẳng đó thẳng thắn và gợi ý cách hoá giải — đừng lờ đi hay tô hồng.
+- Nếu các lá có năng lượng xung khắc nhau (ví dụ một lá tích cực mạnh đi cùng một lá đảo ngược tiêu cực), hãy chỉ ra sự căng thẳng đó thẳng thắn và gợi ý cách hoá giải - đừng lờ đi hay tô hồng.
 - Với trải bài 1 lá: dựa trên câu hỏi Yes/No hoặc câu hỏi dự báo mà người dùng nhập, đưa ra xu hướng nghiêng về "có" / "không" / "chưa rõ ràng, cần thêm thời gian" kèm lý do. Tuyệt đối không phán quyết cứng nhắc kiểu định mệnh không thể thay đổi.
 - Giọng văn: gợi mở, tôn trọng quyền tự quyết của người hỏi, khuyến khích chủ động thay vì thụ động chờ đợi.
 - Độ dài: "overall" 3-5 câu; mỗi lá trong "cards" 2-3 câu; "advice" 2-3 câu hành động cụ thể, thực tế.
-- Không thêm disclaimer kiểu "đây chỉ là giải trí" — người dùng đã biết điều đó.`;
+- Không thêm disclaimer kiểu "đây chỉ là giải trí" - người dùng đã biết điều đó.`;
 
-// Schema ép Gemini trả đúng cấu trúc JSON (dùng responseSchema, không lo lỗi parse markdown)
+// Schema ép Gemini trả đúng cấu trúc JSON (dùng responseSchema, không lỗi parse markdown)
 function buildResponseSchema(mode) {
   const cardSchema = {
     type: "OBJECT",
@@ -109,8 +109,8 @@ module.exports = async function handler(req, res) {
 
     const userPrompt = buildUserPrompt({ mode, theme, question, cards });
 
-    // Model free-tier khuyên dùng: gemini-3.6-flash (chất lượng viết tốt, mới nhất)
-    // Nếu bị rate-limit (429) thường xuyên, đổi thành gemini-3.1-flash-lite (quota cao hơn, chất lượng nhỉnh thấp hơn)
+    // Model free-tier: gemini-3.6-flash
+    // Nếu bị rate-limit (429) thường xuyên, đổi thành gemini-3.1-flash-lite
     const MODEL = "gemini-3.6-flash";
     const url = `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent?key=${apiKey}`;
 
