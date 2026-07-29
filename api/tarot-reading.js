@@ -1,7 +1,7 @@
 // api/tarot-reading.js
-// Vercel Serverless Function — chạy trên server, KHÔNG lộ ra trình duyệt.
-// Dùng Google Gemini API (free tier, không cần thẻ tín dụng, không cần nạp tiền).
-// Lấy API key miễn phí tại: https://aistudio.google.com/app/apikey
+// Vercel Serverless Function - chạy trên server, không lộ ra trình duyệt.
+// Dùng Google Gemini API (free tier).
+// API key miễn phí: https://aistudio.google.com/app/apikey
 // API key đọc từ biến môi trường GEMINI_API_KEY (khai báo trong Vercel dashboard).
 
 const SYSTEM_PROMPT = `Bạn là một tarot reader giàu kinh nghiệm, viết bằng tiếng Việt tự nhiên, ấm áp, sâu sắc nhưng không sáo rỗng, không dùng ngôn ngữ tuyệt đối hoá.
