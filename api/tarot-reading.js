@@ -1,7 +1,7 @@
 // api/tarot-reading.js
-// Vercel Serverless Function — chạy trên server, KHÔNG lộ ra trình duyệt.
-// Dùng Google Gemini API (free tier, không cần thẻ tín dụng, không cần nạp tiền).
-// Lấy API key miễn phí tại: https://aistudio.google.com/app/apikey
+// Vercel Serverless Function - chạy trên server, không lộ ra trình duyệt.
+// Dùng Google Gemini API (free tier).
+// API key miễn phí: https://aistudio.google.com/app/apikey
 // API key đọc từ biến môi trường GEMINI_API_KEY (khai báo trong Vercel dashboard).
 
 const SYSTEM_PROMPT = `Bạn là một tarot reader giàu kinh nghiệm, viết bằng tiếng Việt tự nhiên, ấm áp, sâu sắc nhưng không sáo rỗng, không dùng ngôn ngữ tuyệt đối hoá.
@@ -14,9 +14,9 @@ Nguyên tắc luận giải:
 - Với trải bài 1 lá: dựa trên câu hỏi Yes/No hoặc câu hỏi dự báo mà người dùng nhập, đưa ra xu hướng nghiêng về "có" / "không" / "chưa rõ ràng, cần thêm thời gian" kèm lý do. Tuyệt đối không phán quyết cứng nhắc kiểu định mệnh không thể thay đổi.
 - Giọng văn: gợi mở, tôn trọng quyền tự quyết của người hỏi, khuyến khích chủ động thay vì thụ động chờ đợi.
 - Độ dài: "overall" 3-5 câu; mỗi lá trong "cards" 2-3 câu; "advice" 2-3 câu hành động cụ thể, thực tế.
-- Không thêm disclaimer kiểu "đây chỉ là giải trí" — người dùng đã biết điều đó.`;
+- Không thêm disclaimer kiểu "đây chỉ là giải trí" - người dùng đã biết điều đó.`;
 
-// Schema ép Gemini trả đúng cấu trúc JSON (dùng responseSchema, không lo lỗi parse markdown)
+// Schema ép Gemini trả đúng cấu trúc JSON (dùng responseSchema, không lỗi parse markdown)
 function buildResponseSchema(mode) {
   const cardSchema = {
     type: "OBJECT",
@@ -109,8 +109,8 @@ module.exports = async function handler(req, res) {
 
     const userPrompt = buildUserPrompt({ mode, theme, question, cards });
 
-    // Model free-tier khuyên dùng: gemini-3.6-flash (chất lượng viết tốt, mới nhất)
-    // Nếu bị rate-limit (429) thường xuyên, đổi thành gemini-3.1-flash-lite (quota cao hơn, chất lượng nhỉnh thấp hơn)
+    // Model free-tier: gemini-3.6-flash
+    // Nếu bị rate-limit (429) thường xuyên, đổi thành gemini-3.1-flash-lite
     const MODEL = "gemini-3.6-flash";
     const url = `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent?key=${apiKey}`;
 
