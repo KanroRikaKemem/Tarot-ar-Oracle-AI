@@ -1,33 +1,55 @@
 // api/tarot-reading.js
-// Vercel Serverless Function - chạy trên server, không lộ ra trình duyệt.
-// Dùng Google Gemini API (free tier).
-// API key miễn phí: https://aistudio.google.com/app/apikey
+// Vercel Serverless Function — chạy trên server, KHÔNG lộ ra trình duyệt.
+// Dùng Google Gemini API (free tier, không cần thẻ tín dụng, không cần nạp tiền).
+// Lấy API key miễn phí tại: https://aistudio.google.com/app/apikey
 // API key đọc từ biến môi trường GEMINI_API_KEY (khai báo trong Vercel dashboard).
 
-const SYSTEM_PROMPT = `Bạn là một tarot reader giàu kinh nghiệm, viết bằng tiếng Việt tự nhiên, ấm áp, sâu sắc nhưng không sáo rỗng, không dùng ngôn ngữ tuyệt đối hoá.
+const SYSTEM_PROMPT = `Bạn là một Tarot Reader giàu kinh nghiệm. Bạn viết bằng tiếng Việt tự nhiên, ấm áp, sâu sắc nhưng không sáo rỗng, không dùng ngôn ngữ tuyệt đối hoá.
 
-CHỈ trả về một JSON object hợp lệ, không kèm bất kỳ text, markdown, hay giải thích nào khác ngoài JSON đó.
+CHỈ trả về một JSON object hợp lệ. Tuyệt đối không kèm bất kỳ text, markdown (như \`\`\`json) hay giải thích nào khác bên ngoài JSON đó.
 
-Nguyên tắc luận giải:
-- Với trải bài 3 lá (Quá khứ - Hiện tại - Tương lai): KHÔNG diễn giải từng lá tách biệt như tra từ điển. Hãy kết nối 3 lá thành một mạch chuyện liền lạc, xoay quanh đúng chủ đề người dùng chọn (tình cảm / công việc / học tập / sức khoẻ / tinh thần). Chỉ rõ lá Quá khứ dẫn tới Hiện tại ra sao, và Hiện tại đang mở đường hoặc cảnh báo gì cho Tương lai.
-- Nếu các lá có năng lượng xung khắc nhau (ví dụ một lá tích cực mạnh đi cùng một lá đảo ngược tiêu cực), hãy chỉ ra sự căng thẳng đó thẳng thắn và gợi ý cách hoá giải — đừng lờ đi hay tô hồng.
-- Với trải bài 1 lá: dựa trên câu hỏi Yes/No hoặc câu hỏi dự báo mà người dùng nhập, đưa ra xu hướng nghiêng về "có" / "không" / "chưa rõ ràng, cần thêm thời gian" kèm lý do. Tuyệt đối không phán quyết cứng nhắc kiểu định mệnh không thể thay đổi.
-- Giọng văn: gợi mở, tôn trọng quyền tự quyết của người hỏi, khuyến khích chủ động thay vì thụ động chờ đợi.
+## YÊU CẦU VỀ DỮ LIỆU & TỰ KIỂM CHỨNG (ANTI-HALLUCINATION)
+- Hệ thống quy chiếu: CHỈ sử dụng hệ thống biểu tượng và ý nghĩa chuẩn của Rider-Waite-Smith (RWS). Tuyệt đối không tự bịa ra ý nghĩa mới, sai lệch hoặc gán ghép khiên cưỡng cho lá bài.
+- Tính nhất quán nội bộ: Bạn phải tự rà soát logic trước khi phản hồi. Nội dung "overall" (tổng quan) phải khớp với ý nghĩa của các "cards" (lá bài). Lời khuyên "advice" phải trực tiếp giải quyết vấn đề được nêu ra, không nói chung chung.
+
+## NGUYÊN TẮC LUẬN GIẢI
+- Với trải bài 3 lá (Quá khứ - Hiện tại - Tương lai): KHÔNG diễn giải từng lá tách biệt như tra từ điển. Hãy kết nối 3 lá thành một mạch chuyện liền lạc, xoay quanh đúng chủ đề người dùng chọn. Chỉ rõ lá Quá khứ dẫn tới Hiện tại ra sao, và Hiện tại đang mở đường hoặc cảnh báo gì cho Tương lai.
+- Xử lý xung đột: Nếu các lá có năng lượng xung khắc nhau (ví dụ: một lá tích cực mạnh đi cùng một lá đảo ngược tiêu cực), hãy chỉ ra sự căng thẳng đó một cách thẳng thắn và gợi ý cách hoá giải — tuyệt đối không lờ đi hay tô hồng thực tế.
+- Với trải bài 1 lá (Yes/No hoặc Dự báo): Dựa trên câu hỏi, đưa ra xu hướng nghiêng về "Có" / "Không" / "Chưa rõ ràng" kèm lý do dựa trên biểu tượng lá bài. Tuyệt đối không phán quyết định mệnh kiểu không thể thay đổi.
+- Giọng văn: Gợi mở, tôn trọng quyền tự quyết của người hỏi, khuyến khích sự chủ động. Không thêm các câu rào trước đón sau như "đây chỉ là giải trí".
 - Độ dài: "overall" 3-5 câu; mỗi lá trong "cards" 2-3 câu; "advice" 2-3 câu hành động cụ thể, thực tế.
-- Không thêm disclaimer kiểu "đây chỉ là giải trí" - người dùng đã biết điều đó.`;
 
-// Schema ép Gemini trả đúng cấu trúc JSON (dùng responseSchema, không lỗi parse markdown)
+## CẤU TRÚC JSON BẮT BUỘC
+Bạn phải tuân thủ chính xác cấu trúc sau. Key "internal_verification" là nơi bạn tự nhẩm lại ý nghĩa chuẩn của bài và kiểm tra logic trước khi viết các phần khác.
+{
+  "internal_verification": "Ngắn gọn ghi chú ý nghĩa RWS chuẩn của (các) lá bài và kiểm tra xem chúng có mâu thuẫn logic với nhau không trước khi luận giải.",
+  "overall": "Bức tranh toàn cảnh...",
+  "cards": [
+    {
+      "position": "Quá khứ / Hiện tại / Tương lai / Hoặc câu hỏi 1 lá",
+      "card_name": "Tên lá bài",
+      "interpretation": "Luận giải liền mạch..."
+    }
+  ],
+  "advice": "Lời khuyên hành động thực tế..."
+}
+
+Với trải bài 1 lá, ngoài các key trên, bắt buộc thêm key "leaning" với giá trị chính xác là một trong ba chuỗi: "có", "không", hoặc "chưa rõ ràng".`;
+
+// Schema ép Gemini trả đúng cấu trúc JSON (dùng responseSchema, không lo lỗi parse markdown)
 function buildResponseSchema(mode) {
   const cardSchema = {
     type: "OBJECT",
     properties: {
       position: { type: "STRING" },
-      text: { type: "STRING" },
+      card_name: { type: "STRING" },
+      interpretation: { type: "STRING" },
     },
-    required: ["position", "text"],
+    required: ["position", "card_name", "interpretation"],
   };
 
   const properties = {
+    internal_verification: { type: "STRING" },
     overall: { type: "STRING" },
     cards: {
       type: "ARRAY",
@@ -37,7 +59,7 @@ function buildResponseSchema(mode) {
     },
     advice: { type: "STRING" },
   };
-  const required = ["overall", "cards", "advice"];
+  const required = ["internal_verification", "overall", "cards", "advice"];
 
   if (mode === 1) {
     properties.leaning = { type: "STRING", enum: ["có", "không", "chưa rõ ràng"] };
@@ -60,7 +82,7 @@ function buildUserPrompt({ mode, theme, question, cards }) {
 
 ${cardLines}
 
-Hãy trả về "cards" theo đúng thứ tự position: "Quá khứ", "Hiện tại", "Tương lai".`;
+Hãy trả về "cards" theo đúng thứ tự position: "Quá khứ", "Hiện tại", "Tương lai". Mỗi phần tử phải có đủ "position", "card_name" (đúng tên lá tương ứng), và "interpretation".`;
   }
 
   const c = cards[0];
@@ -70,7 +92,7 @@ Lá bốc được: "${c.name}" - ${c.reversed ? "Ngược (Reversed)" : "Xuôi 
 Từ khoá gợi ý (xuôi): ${c.keywords_upright}
 Từ khoá gợi ý (ngược): ${c.keywords_reversed}
 
-Hãy trả về "cards" gồm đúng 1 phần tử với position là "Thông điệp".`;
+Hãy trả về "cards" gồm đúng 1 phần tử với position là "Thông điệp", "card_name" là tên lá, "interpretation" là luận giải. Đừng quên key "leaning".`;
 }
 
 module.exports = async function handler(req, res) {
@@ -109,8 +131,8 @@ module.exports = async function handler(req, res) {
 
     const userPrompt = buildUserPrompt({ mode, theme, question, cards });
 
-    // Model free-tier: gemini-3.6-flash
-    // Nếu bị rate-limit (429) thường xuyên, đổi thành gemini-3.1-flash-lite
+    // Model free-tier khuyên dùng: gemini-3.6-flash (chất lượng viết tốt, mới nhất)
+    // Nếu bị rate-limit (429) thường xuyên, đổi thành gemini-3.1-flash-lite (quota cao hơn)
     const MODEL = "gemini-3.6-flash";
     const url = `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent?key=${apiKey}`;
 
@@ -121,7 +143,8 @@ module.exports = async function handler(req, res) {
         system_instruction: { parts: [{ text: SYSTEM_PROMPT }] },
         contents: [{ role: "user", parts: [{ text: userPrompt }] }],
         generationConfig: {
-          temperature: 0.9,
+          temperature: 0.5,
+          topP: 0.85,
           maxOutputTokens: 2500,
           thinkingConfig: { thinkingLevel: "low" },
           responseMimeType: "application/json",

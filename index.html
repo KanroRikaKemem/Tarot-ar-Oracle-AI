@@ -498,7 +498,7 @@
             storedCards.forEach((c, i) => {
                 const d = c.userData.data;
                 const isR = c.userData.isReversed;
-                const aiText = (data.cards && data.cards[i] && data.cards[i].text) ? data.cards[i].text : (isR ? d.reversed : d.upright);
+                const aiText = (data.cards && data.cards[i] && data.cards[i].interpretation) ? data.cards[i].interpretation : (isR ? d.reversed : d.upright);
                 const label = (data.cards && data.cards[i] && data.cards[i].position) ? data.cards[i].position : labels[i];
 
                 html += `<div class="reading-section">
