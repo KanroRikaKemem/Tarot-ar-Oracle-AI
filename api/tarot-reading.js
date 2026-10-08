@@ -1,8 +1,3 @@
-// api/tarot-reading.js
-// Vercel Serverless Function — chạy trên server, KHÔNG lộ ra trình duyệt.
-// Dùng Google Gemini API (free tier, không cần thẻ tín dụng, không cần nạp tiền).
-// Lấy API key miễn phí tại: https://aistudio.google.com/app/apikey
-// API key đọc từ biến môi trường GEMINI_API_KEY (khai báo trong Vercel dashboard).
 
 const SYSTEM_PROMPT = `Bạn là một Tarot Reader giàu kinh nghiệm. Bạn viết bằng tiếng Việt tự nhiên, ấm áp, sâu sắc nhưng không sáo rỗng, không dùng ngôn ngữ tuyệt đối hoá.
 
@@ -36,7 +31,6 @@ Bạn phải tuân thủ chính xác cấu trúc sau. Key "internal_verification
 
 Với trải bài 1 lá, ngoài các key trên, bắt buộc thêm key "leaning" với giá trị chính xác là một trong ba chuỗi: "có", "không", hoặc "chưa rõ ràng".`;
 
-// Schema ép Gemini trả đúng cấu trúc JSON (dùng responseSchema, không lo lỗi parse markdown)
 function buildResponseSchema(mode) {
   const cardSchema = {
     type: "OBJECT",
@@ -131,38 +125,62 @@ module.exports = async function handler(req, res) {
 
     const userPrompt = buildUserPrompt({ mode, theme, question, cards });
 
-    // Model free-tier khuyên dùng: gemini-3.6-flash (chất lượng viết tốt, mới nhất)
-    // Nếu bị rate-limit (429) thường xuyên, đổi thành gemini-3.1-flash-lite (quota cao hơn)
-    const MODEL = "gemini-3.6-flash";
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent?key=${apiKey}`;
+    const MODELS = ["gemini-3.6-flash", "gemini-3.1-flash-lite"];
+    const RETRYABLE = [429, 500, 503, 504];
+    const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
-    const response = await fetch(url, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        system_instruction: { parts: [{ text: SYSTEM_PROMPT }] },
-        contents: [{ role: "user", parts: [{ text: userPrompt }] }],
-        generationConfig: {
-          temperature: 0.5,
-          topP: 0.85,
-          maxOutputTokens: 2500,
-          thinkingConfig: { thinkingLevel: "low" },
-          responseMimeType: "application/json",
-          responseSchema: buildResponseSchema(mode),
-        },
-      }),
+    const body = JSON.stringify({
+      system_instruction: { parts: [{ text: SYSTEM_PROMPT }] },
+      contents: [{ role: "user", parts: [{ text: userPrompt }] }],
+      generationConfig: {
+        temperature: 0.5,
+        topP: 0.85,
+        maxOutputTokens: 2500,
+        thinkingConfig: { thinkingLevel: "low" },
+        responseMimeType: "application/json",
+        responseSchema: buildResponseSchema(mode),
+      },
     });
 
-    if (!response.ok) {
-      const errText = await response.text();
-      console.error("Gemini API error:", response.status, errText);
-      if (response.status === 429) {
+    const startedAt = Date.now();
+    let data = null;
+    let lastStatus = 0;
+
+    for (const model of MODELS) {
+      const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+      for (let attempt = 0; attempt < 2; attempt++) {
+        if (Date.now() - startedAt > 40000) break;
+        try {
+          const response = await fetch(url, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body,
+            signal: AbortSignal.timeout(15000),
+          });
+          if (response.ok) {
+            data = await response.json();
+            break;
+          }
+          lastStatus = response.status;
+          const errText = await response.text();
+          console.error("Gemini API error:", model, response.status, errText);
+          if (!RETRYABLE.includes(response.status)) break;
+        } catch (fetchErr) {
+          lastStatus = 0;
+          console.error("Gemini fetch failed:", model, fetchErr.message);
+        }
+        await sleep(1000 * (attempt + 1));
+      }
+      if (data) break;
+    }
+
+    if (!data) {
+      if (lastStatus === 429) {
         return res.status(429).json({ error: "rate_limited" });
       }
       return res.status(502).json({ error: "ai_provider_error" });
     }
 
-    const data = await response.json();
     const rawText = data?.candidates?.[0]?.content?.parts?.[0]?.text;
 
     if (!rawText) {
